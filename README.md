@@ -5,7 +5,7 @@ ONVIF PHP implementation
 
 Welcome! You can find a detailed description on Squidoo page "ONVIF Programming Revealed" http://www.squidoo.com/onvif-programming-revealed
 
-ponvif is a simple solution to build Network Video Client (NVC) working with Network Video Transmitter devices (NVT) 
+ponvif is a concrete approach to build Network Video Client (NVC) working with Network Video Transmitter devices (NVT) 
 such as IP-cameras and video encoders. This solution is a simple programming exercise and has no claim to completeness.
 I choose PHP as programming language because it has almost no learning curve and is very simple to translate in other 
 languages. 
