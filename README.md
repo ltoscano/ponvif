@@ -3,7 +3,7 @@ ponvif
 
 ONVIF PHP implementation
 
-Please, you can find a detailed description on squidoo page "ONVIF Programming Revealed" http://www.squidoo.com/onvif-programming-revealed
+Welcome! You can find a detailed description on Squidoo page "ONVIF Programming Revealed" http://www.squidoo.com/onvif-programming-revealed
 
 ponvif is a simple solution to build Network Video Client (NVC) working with Network Video Transmitter devices (NVT) 
 such as IP-cameras and video encoders. This solution is a simple programming exercise and has no claim to completeness.
