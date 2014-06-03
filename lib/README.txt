@@ -1,4 +1,4 @@
-Copyright (c) 2012-13, Lorenzo Toscano
+Copyright (c) 2012-14, Lorenzo Toscano
 All rights reserved.
 
 Redistribution and use in source and binary forms, with or without

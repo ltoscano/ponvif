@@ -42,3 +42,13 @@ It can send HTTP SOAP requests to a network video device that supports the ONVIF
 - Start a continuous move
 - Start a continuous move and zoom
 - Stop a move
+
+Version 1.1
+
+- Added more robust soap messages handler. 
+- Added more strict error management and exception throwing.
+- Minor fixes to improve compatibility.
+- Added setBreakOnError($flag). 
+  If $flag is true (default) error checking is very strict and ponvif interrupts execution (and throws exception) if an error occurs during communication with the device.
+  If $flag is false and a communication error occurs, ponvif avoids (when possible) to interrupt execution and doesn't throw exception.
+- Added getLastResponse(). It returns last response received from the device.

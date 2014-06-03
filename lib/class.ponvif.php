@@ -30,6 +30,7 @@ class ponvif {
 		$proxyport	proxy port
 		$proxyusername	proxy authentication username
 		$proxypassword  proxy authentication password
+		$lastresponse	last soap response
 	*/
 	protected $ipaddress='';
 	protected $username='';
@@ -48,6 +49,8 @@ class ponvif {
 	protected $proxyport='';
 	protected $proxyusername='';
 	protected $proxypassword='';
+	protected $lastresponse='';
+	protected $intransingent=true;
 
 	/*
 		Properties wrappers
@@ -73,6 +76,9 @@ class ponvif {
 	public function getPTZUri() { return $this->ptzuri; }
 	public function getBaseUrl() { return $this->baseurl; }
 	public function getSupportedVersion() { return $this->onvifversion; }
+	public function getCapabilities() { return $this->capabilities; }
+	public function setBreakOnError($intransingent) { $this->intransingent=$intransingent; }
+	public function getLastResponse() { return $this->lastresponse; }
 
 	/*
 		Constructor & Destructor
@@ -93,10 +99,13 @@ class ponvif {
 	public function initialize() {
 		$this->mediauri='http://'.$this->ipaddress.'/onvif/device_service';
 
-		$datetime=$this->core_GetSystemDateAndTime();print_r($datetime);
-		$timestamp=mktime($datetime['Time']['Hour'], $datetime['Time']['Minute'], $datetime['Time']['Second'],
+		try {
+			$datetime=$this->core_GetSystemDateAndTime();
+			$timestamp=mktime($datetime['Time']['Hour'], $datetime['Time']['Minute'], $datetime['Time']['Second'],
 				  $datetime['Date']['Month'], $datetime['Date']['Day'], $datetime['Date']['Year']);
-		$this->deltatime=time()-$timestamp-5;
+			$this->deltatime=time()-$timestamp-5;
+		} catch (Exception $e) {}
+
 		$this->capabilities=$this->core_GetCapabilities();
 		$onvifVersion=$this->_getOnvifVersion($this->capabilities);
 		$this->mediauri=$onvifVersion['media'];
@@ -121,8 +130,11 @@ class ponvif {
 	*/
 	public function core_GetSystemDateAndTime() {
 		$post_string='<s:Envelope xmlns:s="http://www.w3.org/2003/05/soap-envelope"><s:Body xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema"><GetSystemDateAndTime xmlns="http://www.onvif.org/ver10/device/wsdl"/></s:Body></s:Envelope>';
-		$response=$this->_send_request($this->mediauri,$post_string);
-		return $response['GetSystemDateAndTimeResponse']['SystemDateAndTime']['UTCDateTime'];
+		if ($this->isFault($response=$this->_send_request($this->mediauri,$post_string))) {
+			if ($this->intransingent) throw new Exception('GetSystemDateAndTime: Communication error');
+		}
+		else
+			return $response['Envelope']['Body']['GetSystemDateAndTimeResponse']['SystemDateAndTime']['UTCDateTime'];
 	}
 
 	public function core_GetCapabilities() {
@@ -137,8 +149,11 @@ class ponvif {
                                $REQ['NONCE'],
                                $REQ['TIMESTAMP']),
                          $post_string);
-		$response=$this->_send_request($this->mediauri,$post_string);
-		return $response['GetCapabilitiesResponse']['Capabilities'];
+		if ($this->isFault($response=$this->_send_request($this->mediauri,$post_string))) {
+			if ($this->intransingent) throw new Exception('GetCapabilities: Communication error');
+		}
+		else
+			return $response['Envelope']['Body']['GetCapabilitiesResponse']['Capabilities'];
 	}
 
 	public function media_GetVideoSources() {
@@ -153,8 +168,11 @@ class ponvif {
                                $REQ['NONCE'],
                                $REQ['TIMESTAMP']),
                          $post_string);
-		$response=$this->_send_request($this->mediauri,$post_string);
-		return $response['GetVideoSourcesResponse']['VideoSources'];
+		if ($this->isFault($response=$this->_send_request($this->mediauri,$post_string))) {
+ 			if ($this->intransingent) throw new Exception('GetVideoSources: Communication error');
+		}
+		else
+			return $response['Envelope']['Body']['GetVideoSourcesResponse']['VideoSources'];
 	}
 
 	public function media_GetProfiles() {
@@ -169,8 +187,11 @@ class ponvif {
                                $REQ['NONCE'],
                                $REQ['TIMESTAMP']),
                          $post_string);
-		$response=$this->_send_request($this->mediauri,$post_string);
-		return $response['GetProfilesResponse']['Profiles'];
+		if ($this->isFault($response=$this->_send_request($this->mediauri,$post_string))) {
+			if ($this->intransingent) throw new Exception('GetProfiles: Communication error');
+		}
+		else
+			return $response['Envelope']['Body']['GetProfilesResponse']['Profiles'];
 	}
 
 	public function media_GetServices() {
@@ -185,7 +206,9 @@ class ponvif {
                                $REQ['NONCE'],
                                $REQ['TIMESTAMP']),
                          $post_string);
-		return $this->_send_request($this->mediauri,$post_string);
+		if ($this->isFault($this->_send_request($this->mediauri,$post_string))) {
+			if ($this->intransingent) throw new Exception('GetServices: Communication error');
+		}
 	}
 
 	public function core_GetDeviceInformation() {
@@ -200,8 +223,11 @@ class ponvif {
                                $REQ['NONCE'],
                                $REQ['TIMESTAMP']),
                          $post_string);
-		$response=$this->_send_request($this->mediauri,$post_string);
-		return $response['GetDeviceInformationResponse'];
+		if ($this->isFault($response=$this->_send_request($this->mediauri,$post_string))) {
+			if ($this->intransingent) throw new Exception('GetDeviceInformation: Communication error');
+		}
+		else
+			return $response['Envelope']['Body']['GetDeviceInformationResponse'];
 	}
 
 	public function media_GetStreamUri($profileToken,$stream="RTP-Unicast",$protocol="RTSP") {
@@ -222,8 +248,11 @@ class ponvif {
 			       $stream,
 			       $protocol),
                          $post_string);
-		$response=$this->_send_request($this->mediauri,$post_string);
-		return $response['GetStreamUriResponse']['MediaUri']['Uri'];
+		if ($this->isFault($response=$this->_send_request($this->mediauri,$post_string))) {
+			if ($this->intransingent) throw new Exception('GetStreamUri: Communication error');
+		}
+		else
+			return $response['Envelope']['Body']['GetStreamUriResponse']['MediaUri']['Uri'];
 	}
 
 	public function ptz_GetPresets($profileToken) {
@@ -241,15 +270,19 @@ class ponvif {
                                $REQ['TIMESTAMP'],
 			       $profileToken),
                          $post_string);
-		$response=$this->_send_request($this->ptzuri,$post_string);
-		$getpresetsresponse=$response['GetPresetsResponse']['Preset'];
-		$presets=array();
-		foreach ($getpresetsresponse as $preset) {
-		        $presets[]=array('Token'=>$preset['@attributes']['token'],
+		if ($this->isFault($response=$this->_send_request($this->ptzuri,$post_string))) {
+			if ($this->intransingent) throw new Exception('GetPresets: Communication error');
+		}
+		else {
+			$getpresetsresponse=$response['Envelope']['Body']['GetPresetsResponse']['Preset'];
+			$presets=array();
+			foreach ($getpresetsresponse as $preset) {
+			        $presets[]=array('Token'=>$preset['@attributes']['token'],
 		                         'Name'=>$preset['Name'],
 		                         'PTZPosition'=>$preset['PTZPosition']);
+			}
+			return $presets;
 		}
-		return $presets;
 	}
 
 	public function ptz_GetNode($ptzNodeToken) {
@@ -267,8 +300,11 @@ class ponvif {
                                $REQ['TIMESTAMP'],
 			       $ptzNodeToken),
                          $post_string);
-		$response=$this->_send_request($this->ptzuri,$post_string);
-		return $response['GetNodeResponse'];
+		if ($this->isFault($response=$this->_send_request($this->ptzuri,$post_string))) {
+			if ($this->intransingent) throw new Exception('GetNode: Communication error');
+		}
+		else
+			return $response['Envelope']['Body']['GetNodeResponse'];
 	}
 
 	public function ptz_GotoPreset($profileToken,$presetToken,$speed_pantilt_x,$speed_pantilt_y,$speed_zoom_x) {
@@ -294,7 +330,9 @@ class ponvif {
 			       $speed_pantilt_y,
 			       $speed_zoom_x),
                          $post_string);
-		return $this->_send_request($this->ptzuri,$post_string);
+		if ($this->isFault($this->_send_request($this->ptzuri,$post_string))) {
+			if ($this->intransingent) throw new Exception('GotoPreset: Communication error');
+		}
 	}
 
 	public function ptz_RemovePreset($profileToken,$presetToken) {
@@ -314,7 +352,9 @@ class ponvif {
 			       $profileToken,
 			       $presetToken),
                          $post_string);
-		return $this->_send_request($this->ptzuri,$post_string);
+		if ($this->isFault($this->_send_request($this->ptzuri,$post_string))) {
+			if ($this->intransingent) throw new Exception('RemovePreset: Communication error');
+		}
 	}
 
 	public function ptz_SetPreset($profileToken,$presetName) {
@@ -334,7 +374,9 @@ class ponvif {
 			       $profileToken,
 			       $presetName),
                          $post_string);
-		return $this->_send_request($this->ptzuri,$post_string);
+ 		if ($this->isFault($this->_send_request($this->ptzuri,$post_string))) {
+			if ($this->intransingent) throw new Exception('SetPreset: Communication error');
+		}
 	}
 
 	public function ptz_RelativeMove($profileToken,$translation_pantilt_x,$translation_pantilt_y,$speed_pantilt_x,$speed_pantilt_y) {
@@ -360,7 +402,9 @@ class ponvif {
 			       $speed_pantilt_x,
 			       $speed_pantilt_y),
                          $post_string);
-		return $this->_send_request($this->ptzuri,$post_string);
+ 		if ($this->isFault($this->_send_request($this->ptzuri,$post_string))) {
+			if ($this->intransingent) throw new Exception('RelativeMove: Communication error');
+		}
 	}
 
 	public function ptz_RelativeMoveZoom($profileToken,$zoom,$speedZoom) {
@@ -382,7 +426,9 @@ class ponvif {
 			       $speedZoom,
 			       $zoom),
                          $post_string);
-		return $this->_send_request($this->ptzuri,$post_string);
+                if ($this->isFault($this->_send_request($this->ptzuri,$post_string))) {
+			if ($this->intransingent) throw new Exception('RelativeMoveZoom: Communication error');
+		}
 	}
 
 	public function ptz_AbsoluteMove($profileToken,$position_pantilt_x,$position_pantilt_y,$zoom) {
@@ -406,7 +452,9 @@ class ponvif {
 			       $position_pantilt_y,
 			       $zoom),
                          $post_string);
-		return $this->_send_request($this->ptzuri,$post_string);
+		if ($this->isFault($this->_send_request($this->ptzuri,$post_string))) {
+			if ($this->intransingent) throw new Exception('AbsoluteMove: Communication error');
+		}
 	}
 
 	public function ptz_ContinuousMove($profileToken,$velocity_pantilt_x,$velocity_pantilt_y) {
@@ -428,7 +476,9 @@ class ponvif {
 			       $velocity_pantilt_x,
 			       $velocity_pantilt_y),
                          $post_string);
-		return $this->_send_request($this->ptzuri,$post_string);
+ 		if ($this->isFault($this->_send_request($this->ptzuri,$post_string))) {
+			if ($this->intransingent) throw new Exception('ContinuousMove: Communication error');
+		}
 	}
 
 	public function ptz_ContinuousMoveZoom($profileToken,$zoom) {
@@ -448,7 +498,9 @@ class ponvif {
 			       $profileToken,
 			       $zoom),
                          $post_string);
-		return $this->_send_request($this->ptzuri,$post_string);
+		if ($this->isFault($this->_send_request($this->ptzuri,$post_string))) {
+			if ($this->intransingent) throw new Exception('ContinuousMoveZoom: Communication error');
+		}
 	}
 
 	public function ptz_Stop($profileToken,$pantilt,$zoom) {
@@ -470,7 +522,9 @@ class ponvif {
 			       $pantilt,
 			       $zoom),
                          $post_string);
-		return $this->_send_request($this->ptzuri,$post_string);
+ 		if ($this->isFault($this->_send_request($this->ptzuri,$post_string))) {
+			if ($this->intransingent) throw new Exception('Stop: Communication error');
+		}
 	}
 
 	/*
@@ -510,14 +564,14 @@ class ponvif {
 	  if (isset($videoSources['@attributes'])) {
 		// NVT is a camera
 	        $sources[0]['sourcetoken']=$videoSources['@attributes']['token'];
-		$this->_getProfileData(&$sources,0,$profiles);
+		$this->_getProfileData($sources,0,$profiles);
 	  }
 	  else {
 	       // NVT is an encoder
 	       for ($i=0;$i<count($videoSources);$i++) {
 		        if (strtolower($videoSources[$i]['@attributes']['SignalActive'])=='true') {
 	        	        $sources[$i]['sourcetoken']=$videoSources[$i]['@attributes']['token'];
-				$this->_getProfileData(&$sources,$i,$profiles);
+				$this->_getProfileData($sources,$i,$profiles);
 		       }
 	       } // for
 	  }
@@ -525,7 +579,7 @@ class ponvif {
 	  return $sources;
 	}
 
-	protected function _getProfileData($sources,$i,$profiles) {
+	protected function _getProfileData(&$sources,$i,$profiles) {
 		$inprofile=0;
 		for ($y=0;$y<count($profiles);$y++) {
                         if ($profiles[$y]['VideoSourceConfiguration']['SourceToken']==$sources[$i]['sourcetoken']) {
@@ -544,7 +598,24 @@ class ponvif {
 	       }
 	}
 
-	protected function _object2array($object) { return @json_decode(@json_encode($object),1); }
+	protected function _xml2array($response) {
+		$sxe = new SimpleXMLElement($response);
+		$dom_sxe = dom_import_simplexml($sxe);
+		$dom = new DOMDocument('1.0');
+		$dom_sxe = $dom->importNode($dom_sxe, true);
+		$dom_sxe = $dom->appendChild($dom_sxe);
+		$element = $dom->childNodes->item(0);
+		foreach ($sxe->getDocNamespaces() as $name => $uri) {
+    			$element->removeAttributeNS($uri, $name);
+		}
+		$xmldata=$dom->saveXML();
+		$xmldata=substr($xmldata,strpos($xmldata,"<Envelope>"));
+		$xmldata=substr($xmldata,0,strpos($xmldata,"</Envelope>")+strlen("</Envelope>"));
+		$xml=simplexml_load_string($xmldata);
+		$data=json_decode(json_encode((array)$xml),1);
+		$data=array($xml->getName()=>$data);
+		return $data;
+	}
 
 	protected function _passwordDigest( $username, $password, $timestamp = "default", $nonce = "default" ) {
 		if ($timestamp=='default') $timestamp=date('Y-m-d\TH:i:s.000\Z');
@@ -564,9 +635,9 @@ class ponvif {
 		$soap_do = curl_init();
 		curl_setopt($soap_do, CURLOPT_URL,            $url );
 		if ($this->proxyhost!='' && $this->proxyport!='') {
-  		  curl_setopt($soap_do, CURLOPT_PROXY, 	      $this->proxyhost);         
+  		  curl_setopt($soap_do, CURLOPT_PROXY, 	      $this->proxyhost);
 		  curl_setopt($soap_do, CURLOPT_PROXYPORT,    $this->proxyport);
-		  if ($this->proxyusername!='' && $this->proxypassword!='') 
+		  if ($this->proxyusername!='' && $this->proxypassword!='')
 		    curl_setopt($soap_do, CURLOPT_PROXYUSERPWD, $this->proxyusername.':'.$this->proxypassword);
 		}
 		curl_setopt($soap_do, CURLOPT_CONNECTTIMEOUT, 10);
@@ -580,13 +651,11 @@ class ponvif {
 		//curl_setopt($soap_do, CURLOPT_USERPWD, $user . ":" . $password); // HTTP authentication
 		if ( ($result = curl_exec($soap_do)) === false) {
 			$err = curl_error($soap_do);
-			return array("Fault"=>$err);
+			$this->lastresponse=array("Fault"=>$err);
 		} else {
-			$result=substr($result,strpos($result,"<SOAP-ENV:Body>"));
-			$result=substr($result,0,strpos($result,"</SOAP-ENV:Body>")+strlen("</SOAP-ENV:Body>"));
-			@$xmldata=simplexml_load_string($result);
-			return $this->_object2array($xmldata);
+			$this->lastresponse=$this->_xml2array($result);
 		}
+		return $this->lastresponse;
 	}
 } // end class
 ?>
