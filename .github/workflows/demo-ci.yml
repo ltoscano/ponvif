@@ -1,0 +1,38 @@
+name: Demo CI
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  php-syntax:
+    name: PHP syntax (demo)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+      - name: Check PHP syntax
+        shell: bash
+        run: |
+          set -euo pipefail
+          php --version
+          checked=0
+          while IFS= read -r -d '' file; do
+            php -l "$file"
+            checked=$((checked + 1))
+          done < <(git ls-files -z -- '*.php')
+          test "$checked" -gt 0
+          {
+            echo '## Demo CI: PHP syntax'
+            echo
+            echo "Successfully checked $checked tracked PHP files."
+            echo
+            echo 'This is a syntax check only. Device communication and functional ONVIF behavior were not tested.'
+          } >> "$GITHUB_STEP_SUMMARY"
